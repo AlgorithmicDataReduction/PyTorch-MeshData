@@ -7,7 +7,7 @@ name = "pytorch-meshdata"
 description = "PyTorch dataset utilities for arbitrary mesh based data"
 readme = "README.md"
 version = "0.1.0"
-license = {file = "LICENSE.txt"}
+license = {file = "LICENSE"}
 authors = [
   {name = "Cooper Simpson", email = "simpson.r.cooper@gmail.com"},
   {name = "Kevin Doherty", email = "kevin.doherty@colorado.edu"}
