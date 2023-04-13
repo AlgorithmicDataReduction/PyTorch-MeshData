@@ -26,8 +26,8 @@ requires-python = ">=3.6"
 dependencies = [
 ]
 
-[tool.setuptools]
-packages = ["torch_meshdata"]
+[tool.setuptools.packages.find]
+include = ["torch_meshdata*"]
 
 [project.optional-dependencies]
 test = ["pytest"]
