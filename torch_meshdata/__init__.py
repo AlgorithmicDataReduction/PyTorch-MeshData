@@ -1,1 +1,1 @@
-from mesh_datamodule import MeshDataModule
+from .mesh_datamodule import MeshDataModule
