@@ -85,7 +85,7 @@ class MeshDataModule(pl.LightningDataModule):
 
         if (stage == "fit" or stage is None) and (self.train is None or self.val is None):
             #load dataset
-            train_val = MeshDataset(self.features_path)
+            train_val = MeshDataset(self.features_path, self.channels, normalize=self.normalize)
 
             train_size = round(self.split*len(train_val))
             val_size = len(train_val) - train_size
@@ -94,11 +94,11 @@ class MeshDataModule(pl.LightningDataModule):
 
         if (stage == "test" or stage is None) and self.test is None:
             #load dataset
-            self.test = MeshDataset(self.features_path)
+            self.test = MeshDataset(self.features_path, self.channels, normalize=self.normalize)
 
         if (stage == "predict" or stage is None) and self.predict is None:
             #load dataset
-            self.predict = MeshDataset(self.features_path)
+            self.predict = MeshDataset(self.features_path, self.channels, normalize=self.normalize)
 
         if stage not in ["fit", "test", "predict", None]:
             raise ValueError("Stage must be one of fit, test, predict")
