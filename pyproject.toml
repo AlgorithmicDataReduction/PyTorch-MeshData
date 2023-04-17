@@ -24,6 +24,10 @@ classifiers = [
 ]
 requires-python = ">=3.6"
 dependencies = [
+  "pytorch-lightning",
+  "meshio",
+  "h5py",
+  "numpy"
 ]
 
 [tool.setuptools.packages.find]
