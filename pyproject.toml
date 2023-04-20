@@ -17,10 +17,10 @@ keywords = [
   "Deep Learning"
 ]
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent",
-    "Development Status :: 3-Alpha",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence"
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+  "Development Status :: 3-Alpha",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence"
 ]
 requires-python = ">=3.6"
 dependencies = [

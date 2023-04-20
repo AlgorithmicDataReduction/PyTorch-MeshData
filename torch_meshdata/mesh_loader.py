@@ -1,16 +1,16 @@
 '''
 '''
 
+import pathlib
 import meshio
 import h5py as h5
 
 import numpy as np
 import torch
 
-class Elements(torch.nn.Module):
+class Elements():
 
      def __init__(self, element_pos, element_ind, bd_point_ind=None):
-         super().__init__()
 
          self.element_pos = element_pos
          self.element_ind = element_ind
@@ -26,27 +26,71 @@ class MeshLoader():
 
         self.mesh_file = mesh_file
 
+        return
+    
+    def load_numpy(self):
+
+        points = np.load(self.mesh_file).astype(np.float32)
+
+        return points, None
+
+    def load_hdf5(self):
+
+        with h5.File(self.mesh_file, 'r') as file:
+
+            points = file["points"][...].astype(np.float32)
+            elements = None
+
+            if 'elements' in file.keys():
+                element_pos = file['elements']["element_positions"][...]
+                element_ind = file['elements']["element_indices"][...]
+
+                if "boundary_point_indices" in file['elements'].keys():
+                    bd_point_ind = file['elements']["boundary_point_indices"][...]
+                else:
+                    bd_point_ind = None
+
+                elements = Elements(element_pos, element_ind, bd_point_ind)
+
+        return points, elements
+
+    def load_meshio(self):
+        
+        mesh = meshio.read(self.mesh_file)
+
+        element_pos = []
+        element_ind = []
+
+        for cell_type in mesh.cells:
+            for cell in cell_type[1]:
+                num_cells = len(element_pos)
+
+                element_pos.extend([num_cells, num_cells+len(cell)])
+                element_ind.extend(cell)
+
+        if "boundary" in mesh.point_data.keys():
+            bd_point_ind = np.nonzero(mesh.point_data["boundary"])
+        else:
+            bd_point_ind = None
+
+        points = mesh.points
+        elements = Elements(element_pos, element_ind, bd_point_ind)
+
+        return points, elements
+
     def load_mesh(self):
 
-        elements = None
-
         try:
-            with h5.File(self.mesh_file, 'r') as file:
+            ext = pathlib.Path(self.mesh_file).suffix
 
-                points = torch.from_numpy(file["points"][...].astype(np.float32))
-
-                if 'elements' in file.keys():
-                    element_pos = file['elements']["element_positions"][...]
-                    element_ind = file['elements']["element_indices"][...]
-
-                    if "boundary_point_indices" in file['elements'].keys():
-                        bd_point_ind = file['elements']["boundary_point_indices"][...]
-                    else:
-                        bd_point_ind = None
-
-                    elements = Elements(element_pos, element_ind, bd_point_ind)
+            if ext == ".npy":
+                points, elements = self.load_numpy()
+            elif ext == ".hdf5":
+                points, elements = self.load_hdf5()
+            else:
+                points, elements = self.load_meshio()
 
         except Exception as e:
             raise e
 
-        return points, elements
+        return torch.from_numpy(points), elements

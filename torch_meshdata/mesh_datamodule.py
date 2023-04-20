@@ -1,10 +1,6 @@
 '''
 '''
 
-import os
-from warnings import warn
-
-import torch
 from torch.utils.data import random_split, DataLoader
 
 import pytorch_lightning as pl
@@ -39,8 +35,8 @@ class MeshDataModule(pl.LightningDataModule):
             num_points,
             batch_size,
             channels,
-            quad_map = None,
-            quad_args = {},
+            weight_map = None,
+            weight_args = {},
             normalize = True,
             split = 0.8,
             shuffle = False,
@@ -142,24 +138,14 @@ class MeshDataModule(pl.LightningDataModule):
     '''
     def load_mesh(self):
 
-        #load mesh file
-        if self.mesh_file != None:
-            self.points, elements = MeshLoader(self.mesh_file).load_mesh()
+        self.points, elements = MeshLoader(self.mesh_file).load_mesh()
 
-            assert self.num_points == self.points.shape[0], f"Expected number of points ({self.num_points}) does not match actual number ({self.points.shape[0]})"
-            assert self.spatial_dim == self.points.shape[1], f"Expected spatial dimension ({self.spatial_dim}) does not match actual number ({self.points.shape[1]})"
+        assert self.num_points == self.points.shape[0], f"Expected number of points ({self.num_points}) does not match actual number ({self.points.shape[0]})"
+        assert self.spatial_dim == self.points.shape[1], f"Expected spatial dimension ({self.spatial_dim}) does not match actual number ({self.points.shape[1]})"
 
-            if self.quad_map != None:
-                weights = getattr(quadrature, self.quad_map)(self.points, self.num_points, **self.quad_args)
-            else:
-                weights = None
-
-        #no mesh file, so quad_map must be specified
+        if self.quad_map != None:
+            weights = self.weight_map(self.points, self.num_points, **self.weight_args)
         else:
-            if self.quad_map != None:
-                self.points, weights = getattr(quadrature, self.quad_map)(self.spatial_dim, self.num_points, **self.quad_args)
-            else:
-                raise ValueError("Quadrature map must be specified when no points file is provided")
-
+            weights = None
 
         return self.points, weights, elements
