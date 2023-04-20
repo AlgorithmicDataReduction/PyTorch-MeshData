@@ -10,6 +10,17 @@ from torch.utils.data import Dataset, IterableDataset
 
 ################################################################################
 
+def get_dataset(features_path, channels, channels_last=True, normalize=True):
+
+    path = pathlib.Path(features_path)
+
+    if path.is_file():
+        return MeshTensorDataset(features_path, channels, channels_last, normalize)
+    else:
+        return MeshDataset(features_path, channels, channels_last, normalize)
+
+################################################################################
+
 '''
 Torch dataset responsible for loading mesh features from a single sample file.
 '''

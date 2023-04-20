@@ -8,9 +8,10 @@ import h5py as h5
 import numpy as np
 import torch
 
-class Elements():
+class Elements(torch.nn.Module):
 
      def __init__(self, element_pos, element_ind, bd_point_ind=None):
+         super().__init__()
 
          self.element_pos = element_pos
          self.element_ind = element_ind
