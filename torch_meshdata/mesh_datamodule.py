@@ -43,6 +43,8 @@ class MeshDataModule(pl.LightningDataModule):
             num_workers = 4,
             persistent_workers = True,
             pin_memory = True,
+            batch_sampler = None,
+            sampler_args = {}
         ):
         super().__init__()
 
@@ -102,12 +104,19 @@ class MeshDataModule(pl.LightningDataModule):
         return
 
     def train_dataloader(self):
-        return DataLoader(self.train,
-                            batch_size=self.batch_size,
-                            num_workers=self.num_workers*self.trainer.num_devices,
-                            shuffle=self.shuffle,
-                            pin_memory=self.pin_memory,
-                            persistent_workers=self.persistent_workers)
+        if self.batch_sampler != None:
+            return DataLoader(self.train,
+                                batch_sampler=self.batch_sampler(self.train, **self.sampler_args),
+                                num_workers=self.num_workers*self.trainer.num_devices,
+                                pin_memory=self.pin_memory,
+                                persistent_workers=self.persistent_workers)
+        else:
+            return DataLoader(self.train,
+                                batch_size=self.batch_size,
+                                num_workers=self.num_workers*self.trainer.num_devices,
+                                shuffle=self.shuffle,
+                                pin_memory=self.pin_memory,
+                                persistent_workers=self.persistent_workers)
 
     def val_dataloader(self):
         return DataLoader(self.val,

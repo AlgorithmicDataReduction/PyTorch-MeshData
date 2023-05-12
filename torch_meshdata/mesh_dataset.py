@@ -44,7 +44,7 @@ class MeshTensorDataset(Dataset):
 
         assert features.dim() == 3, f"Features has {features.dim()} dimensions, but should only have 3"
 
-        #extract channels
+        #extract channels and move to channels first
         if channels_last:
             features = torch.movedim(features, -1, 1)
 
