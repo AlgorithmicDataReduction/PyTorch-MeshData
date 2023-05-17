@@ -95,16 +95,33 @@ class MeshDataset(Dataset):
 
         if len(self.feature_files) == 0: raise Exception(f'No features have been found in: {features_path}')
 
-        #normalize
+        #compute normalization constants
+        #NOTE: This could be done in one pass, but the variance is a bit weird because we are computing over two dimensions
         if self.normalize:
-            warn("Normalization not currently supported for MeshDataset.")
+
+            num_samples = len(self)
+            num_channels = len(self.channels)
+
+            mean = torch.zeros(num_channels, 1)
+            var = torch.zeros(num_channels, 1)
+            max = torch.zeros(num_channels, 1)
+            
+            for i in range(num_samples):
+                features = self._loaditem(i)
+
+                mean += torch.mean(features, dim=1, keepdim=True)/num_samples
+                max = torch.maximum(torch.amax(torch.abs(features), dim=1, keepdim=True), max)
+
+            for i in range(num_samples):
+                features = self._loaditem(i)
+
+                var += torch.sum((features-mean)**2, dim=1, keepdim=True)/(num_samples*features.shape[1]-1)
+
+            self.mean, self.std, self.max = mean, torch.sqrt(var), max
 
         return
-
-    def __len__(self):
-        return len(self.feature_files)
-
-    def __getitem__(self, idx):
+    
+    def _loaditem(self, idx):
 
         features = torch.from_numpy(np.load(self.feature_files[idx]).astype(np.float32))
 
@@ -116,9 +133,17 @@ class MeshDataset(Dataset):
 
         features = features[self.channels,:]
 
+        return features
+
+    def __len__(self):
+        return len(self.feature_files)
+
+    def __getitem__(self, idx):
+
+        features = self._loaditem(idx)
+
         if self.normalize:
-            pass
-            # features = (features-self.mean)/(self.std*self.max)
+            features = (features-self.mean)/(self.std*self.max)
 
         return features
 
