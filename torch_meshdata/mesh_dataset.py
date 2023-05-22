@@ -29,7 +29,7 @@ class MeshTensorDataset(Dataset):
             features_path,
             channels,
             channels_last=True,
-            normalize=True
+            normalize=False
         ):
         super().__init__()
 
@@ -51,12 +51,13 @@ class MeshTensorDataset(Dataset):
         features = features[:,channels,:]
 
         #normalize
-        if normalize:
+        if normalize == "z_score":
             mean = torch.mean(features, dim=(0,2), keepdim=True)
             stdv = torch.sqrt(torch.var(features, dim=(0,2), keepdim=True))
 
             features = (features-mean)/stdv
 
+        elif normalize == "max":
             features = features/(torch.amax(torch.abs(features), dim=(0,2), keepdim=True))
 
         self.features = features
@@ -81,43 +82,60 @@ class MeshDataset(Dataset):
             features_path,
             channels,
             channels_last=True,
-            normalize=True
+            normalize=False
         ):
         super().__init__()
 
         #set attributes
         self.channels = channels
         self.channels_last = channels_last
-        self.normalize = normalize
 
         #get feature files
         self.feature_files = sorted(pathlib.Path(features_path).glob("*.npy"))
 
         if len(self.feature_files) == 0: raise Exception(f'No features have been found in: {features_path}')
 
-        #compute normalization constants
+        #compute normalization transform
         #NOTE: This could be done in one pass, but the variance is a bit weird because we are computing over two dimensions
-        if self.normalize:
+        if normalize == "z_score":
 
             num_samples = len(self)
             num_channels = len(self.channels)
 
             mean = torch.zeros(num_channels, 1)
             var = torch.zeros(num_channels, 1)
-            max = torch.zeros(num_channels, 1)
             
             for i in range(num_samples):
                 features = self._loaditem(i)
 
                 mean += torch.mean(features, dim=1, keepdim=True)/num_samples
-                max = torch.maximum(torch.amax(torch.abs(features), dim=1, keepdim=True), max)
 
             for i in range(num_samples):
                 features = self._loaditem(i)
 
                 var += torch.sum((features-mean)**2, dim=1, keepdim=True)/(num_samples*features.shape[1]-1)
 
-            self.mean, self.std, self.max = mean, torch.sqrt(var), max
+            self.mean, self.std = mean, torch.sqrt(var)
+
+            self.normalize = lambda x: (x-self.mean)/self.var
+
+        elif normalize == "max":
+            num_samples = len(self)
+            num_channels = len(self.channels)
+
+            max = torch.zeros(num_channels, 1)
+
+            for i in range(num_samples):
+                features = self._loaditem(i)
+
+                max = torch.maximum(torch.amax(torch.abs(features), dim=1, keepdim=True), max)
+
+            self.max = max
+
+            self.normalize = lambda x: x/self.max
+
+        else:
+            self.normalize = lambda x: x
 
         return
     
@@ -142,8 +160,7 @@ class MeshDataset(Dataset):
 
         features = self._loaditem(idx)
 
-        if self.normalize:
-            features = (features-self.mean)/(self.std*self.max)
+        features = self.normalize(features)
 
         return features
 
