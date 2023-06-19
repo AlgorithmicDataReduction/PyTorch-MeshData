@@ -62,8 +62,8 @@ class MeshLoader():
         element_pos = []
         element_ind = []
 
-        for cell_type in mesh.cells:
-            for cell in cell_type[1]:
+        for cell_block in mesh.cells:
+            for cell in cell_block.data:
                 num_cells = len(element_pos)
 
                 element_pos.extend([num_cells, num_cells+len(cell)])
