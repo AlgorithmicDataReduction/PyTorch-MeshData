@@ -59,14 +59,12 @@ class MeshLoader():
         
         mesh = meshio.read(self.mesh_file)
 
-        element_pos = []
+        element_pos = [0]
         element_ind = []
 
         for cell_block in mesh.cells:
             for cell in cell_block.data:
-                num_cells = len(element_pos)
-
-                element_pos.extend([num_cells, num_cells+len(cell)])
+                element_pos.append(element_pos[-1]+len(cell))
                 element_ind.extend(cell)
 
         if "boundary" in mesh.point_data.keys():

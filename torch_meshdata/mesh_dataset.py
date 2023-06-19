@@ -91,7 +91,7 @@ class MeshDataset(Dataset):
         self.channels_last = channels_last
 
         #get feature files
-        self.feature_files = sorted(pathlib.Path(features_path).glob("*.npy"))
+        self.feature_files = sorted(pathlib.Path(features_path).glob("*"))
 
         if len(self.feature_files) == 0: raise Exception(f'No features have been found in: {features_path}')
 
@@ -141,7 +141,14 @@ class MeshDataset(Dataset):
     
     def _loaditem(self, idx):
 
-        features = torch.from_numpy(np.load(self.feature_files[idx]).astype(np.float32))
+        file = self.feature_files[idx]
+
+        if file.suffix == ".npy":
+            features = np.load(file).astype(np.float32)
+        else:
+            features = np.loadtxt(file).astype(np.float32)
+
+        features = torch.from_numpy(features)
 
         assert features.dim() == 2, f"Features has {features.dim()} dimensions, but should only have 2" 
 
