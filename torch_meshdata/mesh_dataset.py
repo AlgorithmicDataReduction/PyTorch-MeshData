@@ -69,6 +69,9 @@ class MeshTensorDataset(Dataset):
 
     def __getitem__(self, idx):
         return self.features[idx,...]
+    
+    def getall(self):
+        return self.features
 
 ################################################################################
 
@@ -170,6 +173,9 @@ class MeshDataset(Dataset):
         features = self.normalize(features)
 
         return features
+    
+    def getall(self):
+        return torch.cat([self.__getitem__(i) for i in range(self.__len__())])
 
 ################################################################################
 
