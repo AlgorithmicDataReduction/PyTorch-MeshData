@@ -27,7 +27,8 @@ dependencies = [
   "pytorch-lightning",
   "meshio",
   "h5py",
-  "numpy"
+  "numpy",
+  "natsort"
 ]
 
 [tool.setuptools.packages.find]

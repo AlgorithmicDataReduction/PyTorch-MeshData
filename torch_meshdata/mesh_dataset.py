@@ -3,6 +3,7 @@
 
 import pathlib
 from warnings import warn
+from natsort import natsorted
 
 import numpy as np
 import torch
@@ -57,8 +58,9 @@ class MeshTensorDataset(Dataset):
 
             features = (features-mean)/stdv
 
-        elif normalize == "max":
-            features = features/(torch.amax(torch.abs(features), dim=(0,2), keepdim=True))
+        elif normalize == "min-max":
+            max, min = torch.aminmax(features, dim=(0,2), keepdim=True)
+            features = (features-min)/(max-min)
 
         self.features = features
 
@@ -94,7 +96,7 @@ class MeshDataset(Dataset):
         self.channels_last = channels_last
 
         #get feature files
-        self.feature_files = sorted(pathlib.Path(features_path).glob("*"))
+        self.feature_files = natsorted(pathlib.Path(features_path).glob("*"))
 
         if len(self.feature_files) == 0: raise Exception(f'No features have been found in: {features_path}')
 
@@ -122,20 +124,22 @@ class MeshDataset(Dataset):
 
             self.normalize = lambda x: (x-self.mean)/self.var
 
-        elif normalize == "max":
+        elif normalize == "min-max":
             num_samples = len(self)
             num_channels = len(self.channels)
 
+            min = torch.zeros(num_channels, 1)
             max = torch.zeros(num_channels, 1)
 
             for i in range(num_samples):
                 features = self._loaditem(i)
 
-                max = torch.maximum(torch.amax(torch.abs(features), dim=1, keepdim=True), max)
+                min = torch.minimum(torch.amin(features, dim=1, keepdim=True), min)
+                max = torch.maximum(torch.amax(features, dim=1, keepdim=True), max)
 
-            self.max = max
+            self.min, self.max = min, max
 
-            self.normalize = lambda x: x/self.max
+            self.normalize = lambda x: (x-self.min)/(self.max-self.min)
 
         else:
             self.normalize = lambda x: x
