@@ -59,7 +59,8 @@ class MeshTensorDataset(Dataset):
             features = (features-mean)/stdv
 
         elif normalize == "min-max":
-            max, min = torch.aminmax(features, dim=(0,2), keepdim=True)
+            min = torch.amin(features, dim=(0,2), keepdim=True)
+            max = torch.amax(features, dim=(0,2), keepdim=True)
             features = (features-min)/(max-min)
 
         self.features = features
