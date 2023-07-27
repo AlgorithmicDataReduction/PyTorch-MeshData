@@ -58,12 +58,12 @@ class MeshTensorDataset(Dataset):
 
             features = (features-mean)/stdv
 
-        elif normalize == "0-1":
+        elif normalize == "0:1":
             min = torch.amin(features, dim=(0,2), keepdim=True)
             max = torch.amax(features, dim=(0,2), keepdim=True)
             features = (features-min)/(max-min)
 
-        elif normalize == "-1-1":
+        elif normalize == "-1:1":
             min = torch.amin(features, dim=(0,2), keepdim=True)
             max = torch.amax(features, dim=(0,2), keepdim=True)
             features = -1+2*(features-min)/(max-min)
@@ -130,7 +130,7 @@ class MeshDataset(Dataset):
 
             self.normalize = lambda x: (x-self.mean)/self.var
 
-        elif normalize == "0-1" or normalize == "-1-1":
+        elif normalize == "0-1" or normalize == "-1:1":
             num_samples = len(self)
             num_channels = len(self.channels)
 
