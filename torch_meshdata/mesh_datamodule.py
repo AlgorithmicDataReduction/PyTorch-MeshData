@@ -5,6 +5,8 @@ from torch.utils.data import random_split, DataLoader
 
 import pytorch_lightning as pl
 
+import os
+
 from .mesh_loader import MeshLoader
 from .mesh_dataset import get_dataset
 
@@ -35,6 +37,7 @@ class MeshDataModule(pl.LightningDataModule):
             num_points,
             batch_size,
             channels,
+            data_root = "./",
             weight_map = None,
             weight_args = {},
             normalize = True,
@@ -62,6 +65,10 @@ class MeshDataModule(pl.LightningDataModule):
         for key, value in args.items():
             setattr(self, key, value)
 
+        #join paths
+        self.mesh_file = os.path.join(data_root, self.mesh_file)
+        self.features_path = os.path.join(data_root, self.features_path)
+
         self.train, self.val, self.test, self.predict = None, None, None, None
 
         return
@@ -71,7 +78,7 @@ class MeshDataModule(pl.LightningDataModule):
 
         parser = parent_parser.add_argument_group("MeshDataModule")
 
-        parser.add_argument('--data_dir', type=str)
+        parser.add_argument('--data_root', type=str)
 
         return parent_parser
 
