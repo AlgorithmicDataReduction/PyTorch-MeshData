@@ -58,15 +58,24 @@ class MeshTensorDataset(Dataset):
 
             features = (features-mean)/stdv
 
+            self.denormalize = lambda f: stdv*f+mean
+
         elif normalize == "0:1":
             min = torch.amin(features, dim=(0,2), keepdim=True)
             max = torch.amax(features, dim=(0,2), keepdim=True)
             features = (features-min)/(max-min)
 
+            self.denormalize = lambda f: (max-min)*f+min
+
         elif normalize == "-1:1":
             min = torch.amin(features, dim=(0,2), keepdim=True)
             max = torch.amax(features, dim=(0,2), keepdim=True)
             features = -1+2*(features-min)/(max-min)
+
+            self.denormalize = lambda f: (max-min)*(f+1)/2 + min
+
+        else:
+            self.denormalize = lambda f: f
 
         self.features = features
 
@@ -126,9 +135,10 @@ class MeshDataset(Dataset):
 
                 var += torch.sum((features-mean)**2, dim=1, keepdim=True)/(num_samples*features.shape[1]-1)
 
-            self.mean, self.std = mean, torch.sqrt(var)
+            mean, stdv = mean, torch.sqrt(var)
 
-            self.normalize = lambda x: (x-self.mean)/self.var
+            self.normalize = lambda f: (f-mean)/stdv
+            self.denormalize = lambda f: stdv*f+mean
 
         elif normalize == "0-1" or normalize == "-1:1":
             num_samples = len(self)
@@ -143,15 +153,16 @@ class MeshDataset(Dataset):
                 min = torch.minimum(torch.amin(features, dim=1, keepdim=True), min)
                 max = torch.maximum(torch.amax(features, dim=1, keepdim=True), max)
 
-            self.min, self.max = min, max
-
             if normalize == "0-1":
-                self.normalize = lambda x: (x-self.min)/(self.max-self.min)
+                self.normalize = lambda f: (f-min)/(max-min)
+                self.denormalize = lambda f: (max-min)*f+min
             else:
-                self.normalize = lambda x: -1+2*(x-self.min)/(self.max-self.min)
+                self.normalize = lambda f: -1+2*(f-min)/(max-min)
+                self.denormalize = lambda f: (max-min)*(f+1)/2 + min
 
         else:
-            self.normalize = lambda x: x
+            self.normalize = lambda f: f
+            self.denormalize = lambda f: f
 
         return
     
