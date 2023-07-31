@@ -52,13 +52,15 @@ class MeshTensorDataset(Dataset):
         features = features[:,channels,:]
 
         #normalize
-        if normalize == "z_score":
+        if normalize == "z-score":
             mean = torch.mean(features, dim=(0,2), keepdim=True)
             stdv = torch.sqrt(torch.var(features, dim=(0,2), keepdim=True))
 
             features = (features-mean)/stdv
 
             self.denormalize = lambda f: stdv*f+mean
+
+            print("Using z-score normalization")
 
         elif normalize == "0:1":
             min = torch.amin(features, dim=(0,2), keepdim=True)
@@ -67,12 +69,16 @@ class MeshTensorDataset(Dataset):
 
             self.denormalize = lambda f: (max-min)*f+min
 
+            print("Using [0,1] min-max normalization")
+
         elif normalize == "-1:1":
             min = torch.amin(features, dim=(0,2), keepdim=True)
             max = torch.amax(features, dim=(0,2), keepdim=True)
             features = -1+2*(features-min)/(max-min)
 
             self.denormalize = lambda f: (max-min)*(f+1)/2 + min
+
+            print("Using [-1,1] min-max normalization")
 
         else:
             self.denormalize = lambda f: f
@@ -117,7 +123,7 @@ class MeshDataset(Dataset):
 
         #compute normalization transform
         #NOTE: This could be done in one pass, but the variance is a bit weird because we are computing over two dimensions
-        if normalize == "z_score":
+        if normalize == "z-score":
 
             num_samples = len(self)
             num_channels = len(self.channels)
@@ -140,7 +146,9 @@ class MeshDataset(Dataset):
             self.normalize = lambda f: (f-mean)/stdv
             self.denormalize = lambda f: stdv*f+mean
 
-        elif normalize == "0-1" or normalize == "-1:1":
+            print("Using z-score normalization")
+
+        elif normalize == "0:1" or normalize == "-1:1":
             num_samples = len(self)
             num_channels = len(self.channels)
 
@@ -153,12 +161,14 @@ class MeshDataset(Dataset):
                 min = torch.minimum(torch.amin(features, dim=1, keepdim=True), min)
                 max = torch.maximum(torch.amax(features, dim=1, keepdim=True), max)
 
-            if normalize == "0-1":
+            if normalize == "0:1":
                 self.normalize = lambda f: (f-min)/(max-min)
                 self.denormalize = lambda f: (max-min)*f+min
+                print("Using [0,1] min-max normalization")
             else:
                 self.normalize = lambda f: -1+2*(f-min)/(max-min)
                 self.denormalize = lambda f: (max-min)*(f+1)/2 + min
+                print("Using [-1,1] min-max normalization")
 
         else:
             self.normalize = lambda f: f
