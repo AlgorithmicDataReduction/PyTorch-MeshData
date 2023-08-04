@@ -5,7 +5,7 @@ from torch.utils.data import random_split, DataLoader
 
 import pytorch_lightning as pl
 
-import os
+import pathlib
 
 from .mesh_loader import MeshLoader
 from .mesh_dataset import get_dataset
@@ -66,8 +66,8 @@ class MeshDataModule(pl.LightningDataModule):
             setattr(self, key, value)
 
         #join paths
-        self.mesh_file = os.path.join(data_root, self.mesh_file)
-        self.features_path = os.path.join(data_root, self.features_path)
+        self.mesh_file = pathlib.Path(data_root).joinpath(self.mesh_file)
+        self.features_path = pathlib.Path(data_root).joinpath(self.features_path)
 
         self.train, self.val, self.test, self.predict = None, None, None, None
 
