@@ -60,7 +60,7 @@ class MeshTensorDataset(Dataset):
 
             self.denormalize = lambda f: stdv*f+mean
 
-            print("\nUsing z-score normalization\n")
+            print("\nUsing z-score normalization")
 
         elif normalize == "0:1":
             min = torch.amin(features, dim=(0,2), keepdim=True)
@@ -69,7 +69,7 @@ class MeshTensorDataset(Dataset):
 
             self.denormalize = lambda f: (max-min)*f+min
 
-            print("\nUsing [0,1] min-max normalization\n")
+            print("\nUsing [0,1] min-max normalization")
 
         elif normalize == "-1:1":
             min = torch.amin(features, dim=(0,2), keepdim=True)
@@ -78,7 +78,7 @@ class MeshTensorDataset(Dataset):
 
             self.denormalize = lambda f: (max-min)*(f+1)/2 + min
 
-            print("\nUsing [-1,1] min-max normalization\n")
+            print("\nUsing [-1,1] min-max normalization")
 
         else:
             self.denormalize = lambda f: f
@@ -146,7 +146,7 @@ class MeshDataset(Dataset):
             self.normalize = lambda f: (f-mean)/stdv
             self.denormalize = lambda f: stdv*f+mean
 
-            print("\nUsing z-score normalization\n")
+            print("\nUsing z-score normalization")
 
         elif normalize == "0:1" or normalize == "-1:1":
             num_samples = len(self)
@@ -164,11 +164,11 @@ class MeshDataset(Dataset):
             if normalize == "0:1":
                 self.normalize = lambda f: (f-min)/(max-min)
                 self.denormalize = lambda f: (max-min)*f+min
-                print("\nUsing [0,1] min-max normalization\n")
+                print("\nUsing [0,1] min-max normalization")
             else:
                 self.normalize = lambda f: -1+2*(f-min)/(max-min)
                 self.denormalize = lambda f: (max-min)*(f+1)/2 + min
-                print("\nUsing [-1,1] min-max normalization\n")
+                print("\nUsing [-1,1] min-max normalization")
 
         else:
             self.normalize = lambda f: f
