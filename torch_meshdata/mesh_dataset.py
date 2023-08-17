@@ -85,11 +85,14 @@ class MeshTensorDataset(Dataset):
         elif normalize == "z-score-clip":
             mean = torch.mean(features, dim=(0,2), keepdim=True)
             stdv = torch.sqrt(torch.var(features, dim=(0,2), keepdim=True))
+
+            features = (features-mean)/stdv
+
             max = torch.amax(torch.abs(features), dim=(0,2), keepdim=True)
 
-            features = (features-mean)/stdv/max
+            features = features/max
 
-            self.denormalize = lambda f: max*stdv*f+mean
+            self.denormalize = lambda f: stdv*f*max + mean
 
             print("\nUsing cliped z-score normalization")
 
@@ -105,7 +108,7 @@ class MeshTensorDataset(Dataset):
 
             self.denormalize = lambda f: (max-min)*(f+1)/2 + min + mean
 
-            print("\nUsing cliped z-score normalization")
+            print("\nUsing 0 mean [-1,1] normalization")
 
         else:
             self.denormalize = lambda f: f
