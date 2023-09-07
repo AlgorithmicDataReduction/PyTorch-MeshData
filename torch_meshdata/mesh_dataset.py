@@ -78,7 +78,7 @@ class MeshTensorDataset(Dataset):
 
             features = -1+2*(features-min)/(max-min)
 
-            self.denormalize = lambda f: (max-min)*(f+1)/2 + min
+            self.denormalize = lambda f: (max.to(f.device)-min.to(f.device))*(f+1)/2 + min.to(f.device)
 
             print("\nUsing [-1,1] min-max normalization")
 
@@ -92,7 +92,7 @@ class MeshTensorDataset(Dataset):
 
             features = features/max
 
-            self.denormalize = lambda f: stdv*f*max + mean
+            self.denormalize = lambda f: stdv.to(f.device)*f*max.to(f.device) + mean.to(f.device)
 
             print("\nUsing clipped z-score normalization")
 
