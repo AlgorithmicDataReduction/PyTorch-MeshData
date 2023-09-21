@@ -123,8 +123,11 @@ class MeshTensorDataset(Dataset):
     def __getitem__(self, idx):
         return self.features[idx,...]
     
-    def getall(self):
-        return self.denormalize(self.features)
+    def getall(self, denormalize=True):
+        if denormalize:
+            return self.denormalize(self.features)
+        else:
+            return self.features
 
 ################################################################################
 
@@ -238,8 +241,11 @@ class MeshDataset(Dataset):
 
         return features
     
-    def getall(self):
-        return torch.stack([self._loaditem(i) for i in range(self.__len__())])
+    def getall(self, denormalize=True):
+        if denormalize:
+            return torch.stack([self._loaditem(i) for i in range(self.__len__())])
+        else:
+            return torch.stack([self.__getitem__(i) for i in range(self.__len__())])
 
 ################################################################################
 
