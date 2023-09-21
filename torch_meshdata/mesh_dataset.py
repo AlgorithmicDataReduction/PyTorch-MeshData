@@ -124,7 +124,7 @@ class MeshTensorDataset(Dataset):
         return self.features[idx,...]
     
     def getall(self):
-        return self.features
+        return self.denormalize(self.features)
 
 ################################################################################
 
