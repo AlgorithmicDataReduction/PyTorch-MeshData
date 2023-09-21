@@ -239,7 +239,7 @@ class MeshDataset(Dataset):
         return features
     
     def getall(self):
-        return torch.stack([self.__getitem__(i) for i in range(self.__len__())])
+        return torch.stack([self._loaditem(i) for i in range(self.__len__())])
 
 ################################################################################
 
