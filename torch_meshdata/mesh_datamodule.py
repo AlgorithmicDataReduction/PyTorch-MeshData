@@ -120,11 +120,11 @@ class MeshDataModule(pl.LightningDataModule):
             sampler = PartitionSampler(self.train)
 
             self.shuffle = False
-            self.batch_sampler = None
+            batch_sampler = None
         else:
             sampler = None
 
-            if batch_sampler is not None:
+            if self.batch_sampler is not None:
                 batch_sampler = self.batch_sampler(self.train, **self.sampler_args)
                 self.shuffle = False
             else:

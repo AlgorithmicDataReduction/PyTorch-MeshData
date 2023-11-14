@@ -61,7 +61,7 @@ class MeshTensorDataset(Dataset):
         #compute partition indices
         self.partition_indices = [0]
         for i,f in enumerate(features):
-            self.partition_indices.append(f.shape[0]+self.partition_indices[i])
+            self.partition_indices.append(f.shape[2]+self.partition_indices[i])
 
         features = torch.cat(features, dim=2)
 
@@ -138,7 +138,7 @@ class MeshTensorDataset(Dataset):
 
     def __getitem__(self, idx, partition=0):
         if type(idx) == int:
-            return self.features[idx,...,self.partition_indices[partition:partition+2]]
+            return self.features[idx,...,self.partition_indices[partition]:self.partition_indices[partition+1]]
         else:
             return self.features[idx]
     
