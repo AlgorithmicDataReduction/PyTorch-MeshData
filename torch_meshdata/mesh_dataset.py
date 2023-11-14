@@ -11,14 +11,15 @@ from torch.utils.data import Dataset, IterableDataset
 
 ################################################################################
 
-def get_dataset(features_path, channels, channels_last=True, normalize=True):
+def get_dataset(feature_paths, channels, channels_last=True, normalize=True):
 
-    path = pathlib.Path(features_path)
+    #NOTE: This assumes all feature_paths are homogenous
+    path_type = pathlib.Path(feature_paths[0])
 
-    if path.is_file():
-        return MeshTensorDataset(features_path, channels, channels_last, normalize)
+    if path_type.is_file():
+        return MeshTensorDataset(feature_paths, channels, channels_last, normalize)
     else:
-        return MeshDataset(features_path, channels, channels_last, normalize)
+        return MeshDataset(feature_paths, channels, channels_last, normalize)
 
 ################################################################################
 
@@ -27,62 +28,47 @@ Torch dataset responsible for loading mesh features from a single sample file.
 '''
 class MeshTensorDataset(Dataset):
     def __init__(self,
-            features_path,
+            feature_paths,
             channels,
             channels_last=True,
             normalize=False
         ):
         super().__init__()
 
-        try:
-            features = torch.from_numpy(np.load(features_path).astype(np.float32))
+        #load all features
+        features = []
 
-        except FileNotFoundError:
-            raise Exception(f'No features have been found in: {features_path}')
+        for path in feature_paths:
+            try:
+                f = torch.from_numpy(np.load(path).astype(np.float32))
 
-        except Exception as e:
-            raise e
+                assert f.dim() == 3, f"Features has {f.dim()} dimensions, but should only have 3"
 
-        assert features.dim() == 3, f"Features has {features.dim()} dimensions, but should only have 3"
+                #extract channels and move to channels first
+                if channels_last:
+                    f = torch.movedim(f, -1, 1)
 
-        #extract channels and move to channels first
-        if channels_last:
-            features = torch.movedim(features, -1, 1)
+                f = f[:,channels,:]
 
-        features = features[:,channels,:]
+            except FileNotFoundError:
+                raise Exception(f'Error loading features at {path}')
+
+            except Exception as e:
+                raise e
+
+            features.append(f)
+
+        #compute partition indices
+        self.partition_indices = [0]
+        for i,f in enumerate(features):
+            self.partition_indices.append(f.shape[0]+self.partition_indices[i])
+
+        features = torch.cat(features, dim=2)
 
         #normalize
-        if normalize == "z-score":
-            mean = torch.mean(features, dim=(0,2), keepdim=True)
-            stdv = torch.sqrt(torch.var(features, dim=(0,2), keepdim=True))
-
-            features = (features-mean)/stdv
-
-            self.denormalize = lambda f: stdv*f+mean
-
-            print("\nUsing z-score normalization")
-
-        elif normalize == "0:1":
-            min = torch.amin(features, dim=(0,2), keepdim=True)
-            max = torch.amax(features, dim=(0,2), keepdim=True)
-
-            features = (features-min)/(max-min)
-
-            self.denormalize = lambda f: (max-min)*f+min
-
-            print("\nUsing [0,1] min-max normalization")
-
-        elif normalize == "-1:1":
-            min = torch.amin(features, dim=(0,2), keepdim=True)
-            max = torch.amax(features, dim=(0,2), keepdim=True)
-
-            features = -1+2*(features-min)/(max-min)
-
-            self.denormalize = lambda f: (max.to(f.device)-min.to(f.device))*(f+1)/2 + min.to(f.device)
-
-            print("\nUsing [-1,1] min-max normalization")
-
-        elif normalize == "z-score-clip":
+        #NOTE: I am normalizng all of the possible partitions together, but I could also normalize individually
+        
+        if normalize == "z-score-clip":
             mean = torch.mean(features, dim=(0,2), keepdim=True)
             stdv = torch.sqrt(torch.var(features, dim=(0,2), keepdim=True))
 
@@ -96,19 +82,49 @@ class MeshTensorDataset(Dataset):
 
             print("\nUsing clipped z-score normalization")
 
-        elif normalize == "z-score-1:1":
-            mean = torch.mean(features, dim=(0,2), keepdim=True)
+        # elif normalize == "z-score":
+        #     mean = torch.mean(f_temp, dim=(0), keepdim=True).unsqueeze(2)
+        #     stdv = torch.sqrt(torch.var(f_temp, dim=(0), keepdim=True)).unsqueeze(2)
 
-            features -= mean
+        #     features = [(f-mean)/stdv for f in features]
 
-            min = torch.amin(features, dim=(0,2), keepdim=True)
-            max = torch.amax(torch.abs(features), dim=(0,2), keepdim=True)
+        #     self.denormalize = lambda f: stdv*f+mean
 
-            features = -1+2*(features-min)/(max-min)
+        #     print("\nUsing z-score normalization")
 
-            self.denormalize = lambda f: (max-min)*(f+1)/2 + min + mean
+        # elif normalize == "0:1":
+        #     min = torch.amin(f_temp, dim=(0), keepdim=True).unsqueeze(2)
+        #     max = torch.amax(f_temp, dim=(0), keepdim=True).unsqueeze(2)
 
-            print("\nUsing 0 mean [-1,1] normalization")
+        #     features = [(f-min)/(max-min) for f in features]
+
+        #     self.denormalize = lambda f: (max-min)*f+min
+
+        #     print("\nUsing [0,1] min-max normalization")
+
+        # elif normalize == "-1:1":
+        #     min = torch.amin(f_temp, dim=(0), keepdim=True).unsqueeze(2)
+        #     max = torch.amax(f_temp, dim=(0), keepdim=True).unsqueeze(2)
+
+        #     features = [-1+2*(f-min)/(max-min) for f in features]
+
+        #     self.denormalize = lambda f: (max.to(f.device)-min.to(f.device))*(f+1)/2 + min.to(f.device)
+
+        #     print("\nUsing [-1,1] min-max normalization")
+
+        # elif normalize == "z-score-1:1":
+        #     mean = torch.mean(features, dim=(0), keepdim=True).unsqueeze(2)
+
+        #     features -= mean
+
+        #     min = torch.amin(features, dim=(0,2), keepdim=True)
+        #     max = torch.amax(torch.abs(features), dim=(0,2), keepdim=True)
+
+        #     features = [-1+2*(f-min)/(max-min) for f in features]
+
+        #     self.denormalize = lambda f: (max-min)*(f+1)/2 + min + mean
+
+        #     print("\nUsing 0 mean [-1,1] normalization")
 
         else:
             self.denormalize = lambda f: f
@@ -120,8 +136,11 @@ class MeshTensorDataset(Dataset):
     def __len__(self):
         return self.features.shape[0]
 
-    def __getitem__(self, idx):
-        return self.features[idx,...]
+    def __getitem__(self, idx, partition=0):
+        if type(idx) == int:
+            return self.features[idx,...,self.partition_indices[partition:partition+2]]
+        else:
+            return self.features[idx]
     
     def getall(self, denormalize=True):
         if denormalize:
@@ -138,7 +157,7 @@ NOTE: Do we want to support normalization
 '''
 class MeshDataset(Dataset):
     def __init__(self,
-            features_path,
+            feature_paths,
             channels,
             channels_last=True,
             normalize=False
@@ -150,9 +169,9 @@ class MeshDataset(Dataset):
         self.channels_last = channels_last
 
         #get feature files
-        self.feature_files = natsorted(pathlib.Path(features_path).glob("*"))
+        self.feature_files = natsorted(pathlib.Path(feature_paths).glob("*"))
 
-        if len(self.feature_files) == 0: raise Exception(f'No features have been found in: {features_path}')
+        if len(self.feature_files) == 0: raise Exception(f'No features have been found in: {feature_paths}')
 
         #compute normalization transform
         #NOTE: This could be done in one pass, but the variance is a bit weird because we are computing over two dimensions

@@ -9,6 +9,7 @@ import pathlib
 
 from .mesh_loader import MeshLoader
 from .mesh_dataset import get_dataset
+from .mesh_sampler import PartitionSampler
 
 '''
 PT Lightning data module for unstructured point cloud data, possibly with an
@@ -32,7 +33,7 @@ class MeshDataModule(pl.LightningDataModule):
 
     def __init__(self,*,
             mesh_file,
-            features_path,
+            feature_paths,
             spatial_dim,
             num_points,
             batch_size,
@@ -46,6 +47,7 @@ class MeshDataModule(pl.LightningDataModule):
             num_workers = 4,
             persistent_workers = True,
             pin_memory = True,
+            partition_sampler = False,
             batch_sampler = None,
             sampler_args = {}
         ):
@@ -66,9 +68,12 @@ class MeshDataModule(pl.LightningDataModule):
             setattr(self, key, value)
 
         #join paths
-        self.mesh_file = pathlib.Path(data_root).joinpath(self.mesh_file)
-        self.features_path = pathlib.Path(data_root).joinpath(self.features_path)
+        if type(self.feature_paths) != list:
+            self.features_paths = [self.features_paths]
 
+        self.mesh_file = pathlib.Path(data_root).joinpath(self.mesh_file)
+        self.feature_paths = [pathlib.Path(data_root).joinpath(path) for path in self.feature_paths]
+        
         self.train, self.val, self.test, self.predict = None, None, None, None
 
         return
@@ -90,7 +95,7 @@ class MeshDataModule(pl.LightningDataModule):
 
         if (stage == "fit" or stage is None) and (self.train is None or self.val is None):
             #load dataset
-            train_val = get_dataset(self.features_path, self.channels, normalize=self.normalize)
+            train_val = get_dataset(self.feature_paths, self.channels, normalize=self.normalize)
 
             train_size = round(self.split*len(train_val))
             val_size = len(train_val) - train_size
@@ -99,11 +104,11 @@ class MeshDataModule(pl.LightningDataModule):
 
         if (stage == "test" or stage is None) and self.test is None:
             #load dataset
-            self.test = get_dataset(self.features_path, self.channels, normalize=self.normalize)
+            self.test = get_dataset(self.feature_paths, self.channels, normalize=self.normalize)
 
         if (stage == "predict" or stage is None) and self.predict is None:
             #load dataset
-            self.predict = get_dataset(self.features_path, self.channels, normalize=self.normalize)
+            self.predict = get_dataset(self.feature_paths, self.channels, normalize=self.normalize)
 
         if stage not in ["fit", "test", "predict", None]:
             raise ValueError("Stage must be one of fit, test, predict")
@@ -111,19 +116,28 @@ class MeshDataModule(pl.LightningDataModule):
         return
 
     def train_dataloader(self):
-        if self.batch_sampler != None:
-            return DataLoader(self.train,
-                                batch_sampler=self.batch_sampler(self.train, **self.sampler_args),
-                                num_workers=self.num_workers*self.trainer.num_devices,
-                                pin_memory=self.pin_memory,
-                                persistent_workers=self.persistent_workers)
+        if self.partition_sampler:
+            sampler = PartitionSampler(self.train)
+
+            self.shuffle = False
+            self.batch_sampler = None
         else:
-            return DataLoader(self.train,
-                                batch_size=self.batch_size,
-                                num_workers=self.num_workers*self.trainer.num_devices,
-                                shuffle=self.shuffle,
-                                pin_memory=self.pin_memory,
-                                persistent_workers=self.persistent_workers)
+            sampler = None
+
+            if batch_sampler is not None:
+                batch_sampler = self.batch_sampler(self.train, **self.sampler_args)
+                self.shuffle = False
+            else:
+                batch_sampler = None
+
+        return DataLoader(self.train,
+                            sampler=sampler,
+                            batch_sampler=batch_sampler,
+                            batch_size=self.batch_size,
+                            num_workers=self.num_workers*self.trainer.num_devices,
+                            shuffle=self.shuffle,
+                            pin_memory=self.pin_memory,
+                            persistent_workers=self.persistent_workers)
 
     def val_dataloader(self):
         return DataLoader(self.val,
