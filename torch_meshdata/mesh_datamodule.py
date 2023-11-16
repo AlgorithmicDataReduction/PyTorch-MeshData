@@ -140,7 +140,13 @@ class MeshDataModule(pl.LightningDataModule):
                             persistent_workers=self.persistent_workers)
 
     def val_dataloader(self):
+        if self.partition_sampler:
+            sampler = PartitionSampler(self.val)
+        else:
+            sampler = None
+
         return DataLoader(self.val,
+                            sampler=sampler,
                             batch_size=self.batch_size,
                             num_workers=self.num_workers,
                             pin_memory=self.pin_memory,
