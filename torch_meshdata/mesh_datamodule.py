@@ -68,7 +68,7 @@ class MeshDataModule(pl.LightningDataModule):
             setattr(self, key, value)
 
         #join paths
-        if type(self.feature_paths) != list:
+        if not isinstance(self.feature_paths, list):
             self.feature_paths = [self.feature_paths]
 
         self.mesh_file = pathlib.Path(data_root).joinpath(self.mesh_file)
