@@ -117,7 +117,7 @@ class MeshDataModule(pl.LightningDataModule):
 
     def train_dataloader(self):
         if self.partition_sampler:
-            sampler = PartitionSampler(self.train)
+            sampler = PartitionSampler(self.train, shuffle=self.shuffle)
 
             self.shuffle = False
             batch_sampler = None

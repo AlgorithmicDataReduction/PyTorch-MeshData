@@ -12,8 +12,8 @@ Input:
 '''
 class PartitionSampler(DistributedSampler):
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, dataset, **kwargs):
+        super().__init__(dataset, **kwargs)
 
     def __iter__(self):
         if self.shuffle:
