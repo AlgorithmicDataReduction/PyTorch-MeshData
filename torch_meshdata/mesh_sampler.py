@@ -15,6 +15,11 @@ class PartitionSampler(DistributedSampler):
     def __init__(self, dataset, **kwargs):
         super().__init__(dataset, **kwargs)
 
+        if isinstance(dataset, torch.utils.data.dataset.Subset):
+            self.partition_indices = self.dataset.dataset.partition_indices
+        else:
+            self.partition_indices = self.dataset.partition_indices
+
     def __iter__(self):
         if self.shuffle:
             # deterministically shuffle based on epoch and seed
@@ -25,4 +30,4 @@ class PartitionSampler(DistributedSampler):
             batch_indices = list(range(len(self.dataset)))  # type: ignore[arg-type]
 
         #return generator
-        return ([idx, slice(None), slice(*self.dataset.partition_indices[self.rank:self.rank+2])] for idx in batch_indices)
+        return ([idx, slice(None), slice(*self.partition_indices[self.rank:self.rank+2])] for idx in batch_indices)
