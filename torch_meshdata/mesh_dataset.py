@@ -7,6 +7,7 @@ from natsort import natsorted
 
 import numpy as np
 import torch
+from torch.distributed import get_rank
 from torch.utils.data import Dataset, IterableDataset
 
 ################################################################################
@@ -46,7 +47,7 @@ class MeshTensorDataset(Dataset):
 
                 #extract channels and move to channels first
                 if channels_last:
-                    f = torch.movedim(f, -1, 1)
+                    f = torch.movedim(f, 2, 1)
 
                 f = f[:,channels,:]
 
@@ -137,10 +138,9 @@ class MeshTensorDataset(Dataset):
         return self.features.shape[0]
 
     def __getitem__(self, idx, partition=0):
-        if type(idx) == int:
-            return self.features[idx,...,self.partition_indices[partition]:self.partition_indices[partition+1]]
-        else:
-            return self.features[idx]
+        rank = get_rank()
+
+        return self.features[idx,:,self.partition_indices[rank]:self.partition_indices[rank+1]]
     
     def getall(self, denormalize=True):
         if denormalize:

@@ -9,7 +9,6 @@ import pathlib
 
 from .mesh_loader import MeshLoader
 from .mesh_dataset import get_dataset
-from .mesh_sampler import PartitionSampler
 
 '''
 PT Lightning data module for unstructured point cloud data, possibly with an
@@ -47,7 +46,6 @@ class MeshDataModule(pl.LightningDataModule):
             num_workers = 4,
             persistent_workers = True,
             pin_memory = True,
-            partition_sampler = False,
             batch_sampler = None,
             sampler_args = {}
         ):
@@ -116,37 +114,23 @@ class MeshDataModule(pl.LightningDataModule):
         return
 
     def train_dataloader(self):
-        if self.partition_sampler:
-            sampler = PartitionSampler(self.train, shuffle=self.shuffle)
-
-            self.shuffle = False
-            batch_sampler = None
+        if self.batch_sampler is not None:
+            batch_sampler = self.batch_sampler(self.train, **self.sampler_args)
+            shuffle = False
         else:
-            sampler = None
-
-            if self.batch_sampler is not None:
-                batch_sampler = self.batch_sampler(self.train, **self.sampler_args)
-                self.shuffle = False
-            else:
-                batch_sampler = None
+            batch_sampler = None
+            shuffle = self.shuffle
 
         return DataLoader(self.train,
-                            sampler=sampler,
                             batch_sampler=batch_sampler,
                             batch_size=self.batch_size,
                             num_workers=self.num_workers*self.trainer.num_devices,
-                            shuffle=self.shuffle,
+                            shuffle=shuffle,
                             pin_memory=self.pin_memory,
                             persistent_workers=self.persistent_workers)
 
     def val_dataloader(self):
-        if self.partition_sampler:
-            sampler = PartitionSampler(self.val)
-        else:
-            sampler = None
-
         return DataLoader(self.val,
-                            sampler=sampler,
                             batch_size=self.batch_size,
                             num_workers=self.num_workers,
                             pin_memory=self.pin_memory,
