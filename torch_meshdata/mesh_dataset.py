@@ -7,7 +7,7 @@ from natsort import natsorted
 
 import numpy as np
 import torch
-from torch.distributed import get_rank
+import torch.distributed as dist
 from torch.utils.data import Dataset, IterableDataset
 
 ################################################################################
@@ -59,6 +59,14 @@ class MeshTensorDataset(Dataset):
 
             features.append(f)
 
+        if len(feature_paths) > 1:
+            warn("Multiple feature paths assumes you are training on the same number of GPUs")
+            assert dist.is_available(), "Torch Distributed must be available for multi-partition training"
+
+            self.multi_partition = True
+        else:
+            self.multi_partition = False
+
         #compute partition indices
         self.partition_indices = [0]
         for i,f in enumerate(features):
@@ -83,49 +91,65 @@ class MeshTensorDataset(Dataset):
 
             print("\nUsing clipped z-score normalization")
 
-        # elif normalize == "z-score":
-        #     mean = torch.mean(f_temp, dim=(0), keepdim=True).unsqueeze(2)
-        #     stdv = torch.sqrt(torch.var(f_temp, dim=(0), keepdim=True)).unsqueeze(2)
+        elif normalize == "z-score":
 
-        #     features = [(f-mean)/stdv for f in features]
+            raise NotImplementedError("z-score normalization not implemented")
 
-        #     self.denormalize = lambda f: stdv*f+mean
+            #NOTE: Needs to be implemented with multiple parittions
+            # mean = torch.mean(f_temp, dim=(0), keepdim=True).unsqueeze(2)
+            # stdv = torch.sqrt(torch.var(f_temp, dim=(0), keepdim=True)).unsqueeze(2)
 
-        #     print("\nUsing z-score normalization")
+            # features = [(f-mean)/stdv for f in features]
 
-        # elif normalize == "0:1":
-        #     min = torch.amin(f_temp, dim=(0), keepdim=True).unsqueeze(2)
-        #     max = torch.amax(f_temp, dim=(0), keepdim=True).unsqueeze(2)
+            # self.denormalize = lambda f: stdv*f+mean
 
-        #     features = [(f-min)/(max-min) for f in features]
+            # print("\nUsing z-score normalization")
 
-        #     self.denormalize = lambda f: (max-min)*f+min
+        elif normalize == "0:1":
+            
+            raise NotImplementedError("0:1 normalization not implemented")
 
-        #     print("\nUsing [0,1] min-max normalization")
+            #NOTE: Needs to be implemented with multiple parittions
+            # min = torch.amin(f_temp, dim=(0), keepdim=True).unsqueeze(2)
+            # max = torch.amax(f_temp, dim=(0), keepdim=True).unsqueeze(2)
 
-        # elif normalize == "-1:1":
-        #     min = torch.amin(f_temp, dim=(0), keepdim=True).unsqueeze(2)
-        #     max = torch.amax(f_temp, dim=(0), keepdim=True).unsqueeze(2)
+            # features = [(f-min)/(max-min) for f in features]
 
-        #     features = [-1+2*(f-min)/(max-min) for f in features]
+            # self.denormalize = lambda f: (max-min)*f+min
 
-        #     self.denormalize = lambda f: (max.to(f.device)-min.to(f.device))*(f+1)/2 + min.to(f.device)
+            # print("\nUsing [0,1] min-max normalization")
 
-        #     print("\nUsing [-1,1] min-max normalization")
+        elif normalize == "-1:1":
 
-        # elif normalize == "z-score-1:1":
-        #     mean = torch.mean(features, dim=(0), keepdim=True).unsqueeze(2)
+            raise NotImplementedError("1:1 normalization not implemented")
 
-        #     features -= mean
+            #NOTE: Needs to be implemented with multiple parittions
+            # min = torch.amin(f_temp, dim=(0), keepdim=True).unsqueeze(2)
+            # max = torch.amax(f_temp, dim=(0), keepdim=True).unsqueeze(2)
 
-        #     min = torch.amin(features, dim=(0,2), keepdim=True)
-        #     max = torch.amax(torch.abs(features), dim=(0,2), keepdim=True)
+            # features = [-1+2*(f-min)/(max-min) for f in features]
 
-        #     features = [-1+2*(f-min)/(max-min) for f in features]
+            # self.denormalize = lambda f: (max.to(f.device)-min.to(f.device))*(f+1)/2 + min.to(f.device)
 
-        #     self.denormalize = lambda f: (max-min)*(f+1)/2 + min + mean
+            # print("\nUsing [-1,1] min-max normalization")
 
-        #     print("\nUsing 0 mean [-1,1] normalization")
+        elif normalize == "z-score-1:1":
+
+            raise NotImplementedError("z-score-1:1 normalization not implemented")
+
+            #NOTE: Needs to be implemented with multiple parittions
+            # mean = torch.mean(features, dim=(0), keepdim=True).unsqueeze(2)
+
+            # features -= mean
+
+            # min = torch.amin(features, dim=(0,2), keepdim=True)
+            # max = torch.amax(torch.abs(features), dim=(0,2), keepdim=True)
+
+            # features = [-1+2*(f-min)/(max-min) for f in features]
+
+            # self.denormalize = lambda f: (max-min)*(f+1)/2 + min + mean
+
+            # print("\nUsing 0 mean [-1,1] normalization")
 
         else:
             self.denormalize = lambda f: f
@@ -137,16 +161,20 @@ class MeshTensorDataset(Dataset):
     def __len__(self):
         return self.features.shape[0]
 
-    def __getitem__(self, idx, partition=0):
-        rank = get_rank()
+    def __getitem__(self, idx):
+        partition = dist.get_rank() if self.multi_partition else 0
 
-        return self.features[idx,:,self.partition_indices[rank]:self.partition_indices[rank+1]]
+        return self.features[idx,:,self.partition_indices[partition]:self.partition_indices[partition+1]]
     
-    def getall(self, denormalize=True):
+    def getall(self, denormalize=True, partition=None):
+        partition = 0 if partition == None else partition
+
+        features = self.features[:,:,self.partition_indices[partition]:self.partition_indices[partition+1]]
+
         if denormalize:
-            return self.denormalize(self.features)
+            return self.denormalize(features)
         else:
-            return self.features
+            return features
 
 ################################################################################
 
@@ -163,6 +191,10 @@ class MeshDataset(Dataset):
             normalize=False
         ):
         super().__init__()
+
+        #NOTE: Not currently setup to handle multiple feature directories
+        assert len(feature_paths)==1, "Multiple feature directories not supported"
+        feature_paths = feature_paths[0]
 
         #set attributes
         self.channels = channels
