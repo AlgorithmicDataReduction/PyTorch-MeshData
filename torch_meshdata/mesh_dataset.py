@@ -162,7 +162,7 @@ class MeshTensorDataset(Dataset):
         return self.features.shape[0]
 
     def __getitem__(self, idx):
-        partition = dist.get_rank() if self.multi_partition else 0
+        partition = 0 if not self.multi_partition else dist.get_rank()
 
         return self.features[idx,:,self.partition_indices[partition]:self.partition_indices[partition+1]]
     
