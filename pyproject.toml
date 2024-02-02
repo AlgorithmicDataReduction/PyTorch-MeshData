@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "pytorch-meshdata"
@@ -19,10 +19,11 @@ keywords = [
 classifiers = [
   "Programming Language :: Python :: 3",
   "Operating System :: OS Independent",
-  "Development Status :: 3-Alpha",
+  "Development Status :: 3 - Alpha",
   "Topic :: Scientific/Engineering :: Artificial Intelligence"
 ]
 requires-python = ">=3.6"
+
 dependencies = [
   "pytorch-lightning",
   "meshio",
@@ -31,8 +32,20 @@ dependencies = [
   "natsort"
 ]
 
-[tool.setuptools.packages.find]
-include = ["torch_meshdata*"]
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["torch_meshdata/"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "torch_meshdata/*.py",
+  "torch_meshdata/**/*.py",
+  "/test",
+]
+exclude = [
+]
 
 [project.optional-dependencies]
 test = ["pytest"]
