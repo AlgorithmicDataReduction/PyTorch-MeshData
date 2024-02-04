@@ -79,7 +79,7 @@ class MeshTensorDataset(Dataset):
         
         if normalize == "z-score-clip":
             mean = torch.mean(features, dim=(0,2), keepdim=True)
-            stdv = torch.sqrt(torch.var(features, dim=(0,2), keepdim=True))
+            stdv = torch.sqrt(torch.var(features, dim=(0,2), keepdim=True)) + 1e-1
 
             features = (features-mean)/stdv
 
@@ -89,7 +89,38 @@ class MeshTensorDataset(Dataset):
 
             self.denormalize = lambda f: stdv.to(f.device)*f*max.to(f.device) + mean.to(f.device)
 
-            print("\nUsing clipped z-score normalization")
+            print("\nUsing clipped z-score normalization: time and space stationary")
+
+        elif normalize == "z-score-clip-space":
+
+            mean = torch.mean(features, dim=(2), keepdim=True)
+            stdv = torch.sqrt(torch.var(features, dim=(2), keepdim=True)) + 1e-1
+
+            features = (features-mean)/stdv
+
+            max = torch.amax(torch.abs(features), dim=(0,2), keepdim=True)
+
+            features = features/max
+
+            self.denormalize = lambda f: stdv.to(f.device)*f*max.to(f.device) + mean.to(f.device)
+
+            print("\nUsing clipped z-score normalization: space stationary")
+
+        elif normalize == "z-score-clip-time":
+
+            mean = torch.mean(features, dim=(0), keepdim=True)
+            stdv = torch.sqrt(torch.var(features, dim=(0), keepdim=True)) + 1e-1
+
+            features = (features-mean)/stdv
+
+            max = torch.amax(torch.abs(features), dim=(0,2), keepdim=True)
+
+            features = features/max
+
+            self.denormalize = lambda f: stdv.to(f.device)*f*max.to(f.device) + mean.to(f.device)
+
+            print("\nUsing clipped z-score normalization: time stationary")
+
 
         elif normalize == "z-score":
 
